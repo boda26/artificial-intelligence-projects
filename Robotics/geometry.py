@@ -12,45 +12,14 @@
 This file contains geometry functions necessary for solving problems in MP3
 """
 
+from cmath import sqrt
 import math
 import numpy as np
 from alien import Alien
 from typing import List, Tuple
 
-def does_alien_touch_wall(alien, walls,granularity):
-    """Determine whether the alien touches a wall
-
-        Args:
-            alien (Alien): Instance of Alien class that will be navigating our map
-            walls (list): List of endpoints of line segments that comprise the walls in the maze in the format [(startx, starty, endx, endx), ...]
-            granularity (int): The granularity of the map
-
-        Return:
-            True if touched, False if not
-    """
-    return False
-
-def does_alien_touch_goal(alien, goals):
-    """Determine whether the alien touches a goal
-        
-        Args:
-            alien (Alien): Instance of Alien class that will be navigating our map
-            goals (list): x, y coordinate and radius of goals in the format [(x, y, r), ...]. There can be multiple goals
-        
-        Return:
-            True if a goal is touched, False if not.
-    """
-    return False
-
-def is_alien_within_window(alien, window,granularity):
-    """Determine whether the alien stays within the window
-        
-        Args:
-            alien (Alien): Alien instance
-            window (tuple): (width, height) of the window
-            granularity (int): The granularity of the map
-    """
-    return True
+def two_point_distance(p1, p2):
+    return np.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2)
 
 def point_segment_distance(point, segment):
     """Compute the distance from the point to the line segment.
@@ -63,7 +32,52 @@ def point_segment_distance(point, segment):
         Return:
             Euclidean distance from the point to the line segment.
     """
-    return -1
+     # vector AB
+    A = segment[0]
+    B = segment[1]
+    C = point
+    AB = [None, None];
+    AB[0] = B[0] - A[0];
+    AB[1] = B[1] - A[1];
+    # vector BP
+    BC = [None, None];
+    BC[0] = C[0] - B[0];
+    BC[1] = C[1] - B[1];
+    # vector AP
+    AC = [None, None];
+    AC[0] = C[0] - A[0];
+    AC[1] = C[1] - A[1];
+    # Variables to store dot product
+    # Calculating the dot product
+    AB_BC = AB[0] * BC[0] + AB[1] * BC[1];
+    AB_AC = AB[0] * AC[0] + AB[1] * AC[1];
+    # Minimum distance from
+    # point E to the line segment
+    reqAns = 0;
+    # Case 1
+    if (AB_BC > 0) :
+        # Finding the magnitude
+        y = C[1] - B[1];
+        x = C[0] - B[0];
+        reqAns = np.sqrt(x * x + y * y);
+    # Case 2
+    elif (AB_AC < 0) :
+        y = C[1] - A[1];
+        x = C[0] - A[0];
+        reqAns = np.sqrt(x * x + y * y);
+    # Case 3
+    else:
+        # Finding the perpendicular distance
+        x1 = AB[0];
+        y1 = AB[1];
+        x2 = AC[0];
+        y2 = AC[1];
+        mod = np.sqrt(x1 * x1 + y1 * y1);
+        reqAns = abs(x1 * y2 - y1 * x2) / mod;
+    return reqAns; 
+
+def ccw(A,B,C):
+    return (C[1]-A[1]) * (B[0]-A[0]) > (B[1]-A[1]) * (C[0]-A[0])
 
 def do_segments_intersect(segment1, segment2):
     """Determine whether segment1 intersects segment2.  
@@ -77,7 +91,20 @@ def do_segments_intersect(segment1, segment2):
         Return:
             True if line segments intersect, False if not.
     """
-    return None
+    A = segment1[0]
+    B = segment1[1]
+    C = segment2[0]
+    D = segment2[1]
+    if point_segment_distance(A, segment2) == 0:
+        return True
+    if point_segment_distance(B, segment2) == 0:
+        return True
+    if point_segment_distance(C, segment1) == 0:
+        return True
+    if point_segment_distance(D, segment1) == 0:
+        return True
+    return ccw(A,C,D) != ccw(B,C,D) and ccw(A,B,C) != ccw(A,B,D)
+
 
 def segment_distance(segment1, segment2):
     """Compute the distance from segment1 to segment2.  You will need `do_segments_intersect`.
@@ -90,7 +117,150 @@ def segment_distance(segment1, segment2):
         Return:
             Euclidean distance between the two line segments.
     """
-    return -1
+    if do_segments_intersect(segment1, segment2):
+        return 0
+    else:
+        p1 = segment1[0]
+        p2 = segment1[1]
+        p3 = segment2[0]
+        p4 = segment2[1]
+        distances = []
+        distances.append(point_segment_distance(p1, segment2))
+        distances.append(point_segment_distance(p2, segment2))
+        distances.append(point_segment_distance(p3, segment1))
+        distances.append(point_segment_distance(p4, segment1))
+        return min(distances)
+
+
+def check_circle(center, width, walls, buffer):
+    for wall in walls:
+        p1 = (wall[0], wall[1])
+        p2 = (wall[2], wall[3])
+        tangent_dist = point_segment_distance(center, (p1,p2))
+        if tangent_dist <= width + buffer:
+            return True
+    return False
+
+def check_horizontal(alien, walls, buffer):
+    head_tail = alien.get_head_and_tail()
+    if head_tail[0][0] < head_tail[1][0]:
+        head = head_tail[0]
+        tail = head_tail[1]
+    else:
+        head = head_tail[1]
+        tail = head_tail[0]
+    d = alien.get_width()
+    head1 = (head[0], head[1] - d - buffer)
+    tail1 = (tail[0], tail[1] - d - buffer)
+    head2 = (head[0], head[1] + d + buffer)
+    tail2 = (tail[0], tail[1] + d + buffer)
+    for wall in walls:
+        w1 = (wall[0], wall[1])
+        w2 = (wall[2], wall[3])
+        if do_segments_intersect((head1, tail1), (w1, w2)) or do_segments_intersect((head2, tail2), (w1, w2)) :
+            return True
+    if check_circle((head[0], head[1]), d, walls, buffer) or check_circle((tail[0], tail[1]), d, walls, buffer):
+        return True
+    return False
+
+def check_vertical(alien, walls, buffer):
+    head_tail = alien.get_head_and_tail()
+    if head_tail[0][1] < head_tail[1][1]:
+        head = head_tail[0]
+        tail = head_tail[1]
+    else:
+        head = head_tail[1]
+        tail = head_tail[0]
+    d = alien.get_width()
+    head1 = (head[0] - d - buffer, head[1])
+    tail1 = (tail[0] - d - buffer, tail[1])
+    head2 = (head[0] + d + buffer, head[1])
+    tail2 = (tail[0] + d + buffer, tail[1])
+    for wall in walls:
+        w1 = (wall[0], wall[1])
+        w2 = (wall[2], wall[3])
+        if do_segments_intersect((head1, tail1), (w1, w2)) or do_segments_intersect((head2, tail2), (w1, w2)):
+            return True
+    if check_circle((head[0], head[1]), d, walls, buffer) or check_circle((tail[0], tail[1]), d, walls, buffer):
+        return True
+    return False
+
+
+def does_alien_touch_wall(alien, walls, granularity):
+    """Determine whether the alien touches a wall
+
+        Args:
+            alien (Alien): Instance of Alien class that will be navigating our map
+            walls (list): List of endpoints of line segments that comprise the walls in the maze in the format [(startx, starty, endx, endx), ...]
+            granularity (int): The granularity of the map
+
+        Return:
+            True if touched, False if not
+    """
+    buffer = granularity / np.sqrt(2)
+    if alien.is_circle():
+        return check_circle(alien.get_centroid(), alien.get_width(), walls, buffer)
+    elif alien.get_shape() == 'Horizontal':
+        return check_horizontal(alien, walls, buffer)
+    elif alien.get_shape() == 'Vertical':
+        return check_vertical(alien, walls, buffer)
+
+
+def does_alien_touch_goal(alien, goals):
+    """Determine whether the alien touches a goal
+        
+        Args:
+            alien (Alien): Instance of Alien class that will be navigating our map
+            goals (list): x, y coordinate and radius of goals in the format [(x, y, r), ...]. There can be multiple goals
+        
+        Return:
+            True if a goal is touched, False if not.
+    """
+    if alien.is_circle():
+        for goal in goals:
+            if two_point_distance(alien.get_centroid(), (goal[0], goal[1])) <= alien.get_width() + goal[2]:
+                return True
+        return False
+    else:
+        head_tail = alien.get_head_and_tail()
+        head = head_tail[0]
+        tail = head_tail[1]
+        d = alien.get_width()
+        for goal in goals:
+            goal_center = (goal[0], goal[1])
+            radius = goal[2]
+            if two_point_distance(goal_center, head) <= radius + d:
+                return True
+            if two_point_distance(goal_center, tail) <= radius + d:
+                return True
+            walls = []
+            if alien.get_shape() == 'Horizontal':
+                walls = [(head[0], head[1] - d, tail[0], tail[1] - d), (head[0], head[1] + d, tail[0], tail[1] + d)]
+            if alien.get_shape() == 'Vertical':
+                walls = [(head[0] - d, head[1], tail[0] - d, tail[1]), (head[0] + d, head[1], tail[0] + d, tail[1])]
+            if check_circle(goal_center, radius, walls, 0):
+                return True
+        return False
+
+def is_alien_within_window(alien, window,granularity):
+    """Determine whether the alien stays within the window
+        
+        Args:
+            alien (Alien): Alien instance
+            window (tuple): (width, height) of the window
+            granularity (int): The granularity of the map
+    """
+    w = window[0]
+    h = window[1]
+    walls = [(0,0,w,0), (0,0,0,h), (0,h,w,h), (w,0,w,h)]
+    buffer = granularity / np.sqrt(2)
+    if alien.is_circle():
+        return not check_circle(alien.get_centroid(), alien.get_width(), walls, buffer)
+    elif alien.get_shape() == 'Horizontal':
+        return not check_horizontal(alien, walls, buffer)
+    elif alien.get_shape() == 'Vertical':
+        return not check_vertical(alien, walls, buffer)
+
 
 if __name__ == '__main__':
 

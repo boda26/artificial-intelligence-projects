@@ -77,7 +77,9 @@ class Application:
             #time in seconds
             time_start      = time.time()
             path            = getattr(search, mode)(self.maze, True)
-            
+            if path:
+                path = [node.state for node in path]
+                
             time_total      = time.time() - time_start   
 
         pygame.init()

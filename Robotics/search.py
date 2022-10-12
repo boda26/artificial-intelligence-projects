@@ -20,6 +20,7 @@ This file contains search functions.
 
 from collections import deque
 import heapq
+from os import curdir
 
 # Search should return the path and the number of states explored.
 # The path should be a list of MazeState objects that correspond
@@ -42,10 +43,33 @@ def astar(maze, ispart1=False):
     @return: a path in the form of a list of MazeState objects
     """
     # Your code here
-    return []
+    starting_state = maze.getStart()
+    visited_states = {hash(starting_state): (None, 0)}
+    frontier = []
+    heapq.heappush(frontier, starting_state)
+    while len(frontier) != 0:
+        top = heapq.heappop(frontier)
+        if top.is_goal():
+            path = backtrack(visited_states, top)
+            return path
+        for state in top.get_neighbors(ispart1=True):
+            if hash(state) not in visited_states or state.dist_from_start + state.h < visited_states[hash(state)][1]:
+                visited_states[hash(state)] = (top, state.dist_from_start + state.h)
+                heapq.heappush(frontier, state)
+    return None
 
 # This is the same as backtrack from MP2
 def backtrack(visited_states, current_state):
     path = []
+    # Your code here ---------------
+    path.append(current_state)
+    cur = current_state
+    while cur.dist_from_start != 0:
+        for key, value in visited_states.items():
+            if key == hash(cur):
+                path.append(value[0])
+                cur = value[0]
+    path.reverse()
+    # ------------------------------
     return path
         

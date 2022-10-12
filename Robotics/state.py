@@ -14,7 +14,7 @@ def manhattan(a, b):
     @param b: a length-3 state tuple
     @return: the manhattan distance between a and b
     """
-    return 0
+    return abs(b[0] - a[0]) + abs(b[1] - a[1]) + abs(b[2] - a[2])
 
 
 from abc import ABC, abstractmethod
@@ -95,27 +95,35 @@ class MazeState(AbstractState):
         # We provide you with a method for getting a list of neighbors of a state
         # that uses the Maze's getNeighbors function.
         neighboring_locs = self.maze_neighbors(*self.state, part1=ispart1)
-
+        for loc in neighboring_locs:
+            nbr = MazeState(loc, self.goal, self.dist_from_start + 1, self.maze, self.mst_cache, self.use_heuristic)
+            nbr_states.append(nbr)
         return nbr_states
 
     # TODO: implement this method
     def is_goal(self):
-        pass
+        return self.state in self.goal
 
     # TODO: implement these methods __hash__ AND __eq__
     def __hash__(self):
-        return 0
+        return hash(self.state) + hash(self.goal)
+
     def __eq__(self, other):
-        return True
+        return hash(self.state) + hash(self.goal) == hash(other.state) + hash(other.goal)
 
     # TODO: implement this method
     # Our heuristic is: manhattan(self.state, nearest_goal). No need for MST.
     def compute_heuristic(self):
-        return 0
+        min_dist = float('inf')
+        for g in self.goal:
+            min_dist = min(min_dist, manhattan(self.state, g))
+        return min_dist
     
     # TODO: implement this method. It should be similar to MP 2
     def __lt__(self, other):
-        pass
+        if self.dist_from_start + self.h == other.dist_from_start + other.h:
+            return self.tiebreak_idx < other.tiebreak_idx
+        return self.dist_from_start + self.h < other.dist_from_start + other.h
     
     # str and repr just make output more readable when your print out states
     def __str__(self):
