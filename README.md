@@ -1,4 +1,4 @@
 # artificial-intelligence-projects
-Artificial Intelligence Projects for CS440
+Projects for CS440-Artificial Intelligence, Fall 2022.
 
 
