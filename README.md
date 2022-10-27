@@ -1,2 +1,4 @@
 # artificial-intelligence-projects
-Artificial Intelligence Projects
+Artificial Intelligence Projects for CS440
+
+
